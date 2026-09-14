@@ -59,6 +59,15 @@ interface ManifestVulnerability {
     fun check(manifest: ProcessManifest)
 }
 
+internal fun resolveManifestLabel(
+    labelValue: Any?,
+    resourceLookup: (Int) -> String?
+): String? = when (labelValue) {
+    is String -> labelValue
+    is Int -> resourceLookup(labelValue)
+    else -> null
+}
+
 /**
  * for convenience to recognize a particular structure during serialization
  */
@@ -367,12 +376,12 @@ object AndroidUtils {
             return
         }
         AppLabelName = try {
-            val v = (manifest.application as BinaryAndroidApplication).aXmlNode.getAttribute("label").value as Int
-            println(v)
-            val r = resources!!.findResource(v) as StringResource
-            r.value
+            val application = manifest.application as? BinaryAndroidApplication
+            val labelValue = application?.aXmlNode?.getAttribute("label")?.value
+            resolveManifestLabel(labelValue) { resourceId ->
+                (resources?.findResource(resourceId) as? StringResource)?.value
+            } ?: "unknown"
         } catch (e: Exception) {
-            e.printStackTrace()
             Log.logErr("getAppLabelNameIfNeeded error")
             "unknown"
         }
