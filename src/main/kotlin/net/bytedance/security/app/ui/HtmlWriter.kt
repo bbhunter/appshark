@@ -24,6 +24,7 @@ import net.bytedance.security.app.Log
 import net.bytedance.security.app.RuleDescription
 import net.bytedance.security.app.android.AndroidUtils
 import net.bytedance.security.app.getConfig
+import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.web.DefaultVulnerabilitySaver
 import soot.SootMethod
 import soot.jimple.Stmt
@@ -42,7 +43,7 @@ interface AddVulnerabilityAndSaveResult {
 html string generator for vulnerability report
  */
 open class HtmlWriter(val desc: RuleDescription) {
-    val htmlName = desc.name + ".html"
+    val htmlName = SecureFileIO.safeOutputFileName(desc.name + ".html")
     fun generateHtml(): String {
         return try {
             createHTML(prettyPrint = false).html {

@@ -18,7 +18,10 @@
 package net.bytedance.security.app.ui
 
 import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.RuleDescription
 import net.bytedance.security.app.util.Json
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 val data = """
@@ -56,6 +59,18 @@ val data = """
 """.trimIndent()
 
 internal class HtmlWriterTest {
+    @Test
+    fun `html output name is a single safe path component`() {
+        val writer = HtmlWriter(
+            RuleDescription(name = "controlled/../../escaped\\report")
+        )
+
+        assertFalse(writer.htmlName.contains('/'))
+        assertFalse(writer.htmlName.contains('\\'))
+        assertFalse(writer.htmlName.contains(".."))
+        assertTrue(writer.htmlName.endsWith(".html"))
+    }
+
     @Test
     fun testHtml() {
         val s = data
