@@ -27,6 +27,7 @@ import net.bytedance.security.app.cfg
 import net.bytedance.security.app.getConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.io.File
 import java.nio.file.Files
 
@@ -126,6 +127,27 @@ internal class RulesTest {
                 AnalyzeStepByStep().loadRules("nested/empty.json5", -1, -1)
             }
             assertTrue(rules.allRules.isEmpty())
+        } finally {
+            cfg = previousConfig
+        }
+    }
+
+    @Test
+    fun `automatic rule discovery rejects symbolic link files`() {
+        assumeFalse(System.getProperty("os.name").startsWith("Windows"))
+        val previousConfig = cfg
+        val parent = Files.createTempDirectory("appshark-rules")
+        val root = Files.createDirectory(parent.resolve("rules"))
+        val outside = Files.writeString(parent.resolve("outside.json"), "{}")
+        Files.createSymbolicLink(root.resolve("linked.json"), outside)
+        cfg = ArgumentConfig(apkPath = "app.apk", rulePath = root.toString())
+
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    AnalyzeStepByStep().loadRules("", -1, -1)
+                }
+            }
         } finally {
             cfg = previousConfig
         }

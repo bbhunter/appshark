@@ -46,7 +46,12 @@ class AnalyzeStepByStep {
             withContext(Dispatchers.IO) {
                 Files.walk(ruleRoot, 1).use { paths ->
                     paths.filter { it.pathString.endsWith(".json") }
-                        .map { it.pathString }
+                        .map {
+                            SecureFileIO.resolveRuleFile(
+                                ruleRoot,
+                                ruleRoot.relativize(it).toString()
+                            ).toString()
+                        }
                         .toList()
                 }
             }
