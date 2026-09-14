@@ -28,6 +28,8 @@ import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.web.DefaultVulnerabilitySaver
 import soot.SootMethod
 import soot.jimple.Stmt
+import java.net.URI
+import java.net.URISyntaxException
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 
@@ -82,9 +84,15 @@ open class HtmlWriter(val desc: RuleDescription) {
                 +"TargetSdk: ${AndroidUtils.TargetSdk}\n"
                 desc.wiki?.let {
                     +String.format("wiki: ")
-                    a {
-                        href = it
-                        target = "_blank"
+                    val safeUrl = safeHttpUrl(it)
+                    if (safeUrl != null) {
+                        a {
+                            href = safeUrl
+                            target = "_blank"
+                            rel = "noopener noreferrer"
+                            +it
+                        }
+                    } else {
                         +it
                     }
                     +"\n"
@@ -94,10 +102,17 @@ open class HtmlWriter(val desc: RuleDescription) {
                 +"detail: ${desc.detail}\n"
                 if (getConfig().deobfApk.isNotEmpty()) {
                     +"deobfApk:"
-                    a {
-                        href = getConfig().deobfApk
-                        target = "_blank"
-                        +getConfig().deobfApk
+                    val deobfApk = getConfig().deobfApk
+                    val safeUrl = safeHttpUrl(deobfApk)
+                    if (safeUrl != null) {
+                        a {
+                            href = safeUrl
+                            target = "_blank"
+                            rel = "noopener noreferrer"
+                            +deobfApk
+                        }
+                    } else {
+                        +deobfApk
                     }
                     +"\n"
                 }
@@ -139,12 +154,13 @@ open class HtmlWriter(val desc: RuleDescription) {
                     content = "text/html"
                     charset = "UTF-8"
                 }
+                meta {
+                    httpEquiv = "Content-Security-Policy"
+                    content = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; " +
+                        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                }
 
                 title("vulnerability scan result")
-                link {
-                    rel = "stylesheet"
-                    href = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/default.min.css"
-                }
                 style {
                     unsafe {
                         raw(
@@ -177,8 +193,26 @@ open class HtmlWriter(val desc: RuleDescription) {
                         )
                     }
                 }
-                script { src = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js" }
-                script { unsafe { raw("hljs.initHighlightingOnLoad();") } }
+            }
+        }
+
+        internal fun safeHttpUrl(value: String?): String? {
+            if (value.isNullOrBlank()) {
+                return null
+            }
+            return try {
+                val uri = URI(value.trim())
+                if (
+                    (uri.scheme.equals("https", ignoreCase = true) ||
+                        uri.scheme.equals("http", ignoreCase = true)) &&
+                    !uri.host.isNullOrBlank()
+                ) {
+                    uri.toASCIIString()
+                } else {
+                    null
+                }
+            } catch (_: URISyntaxException) {
+                null
             }
         }
 
