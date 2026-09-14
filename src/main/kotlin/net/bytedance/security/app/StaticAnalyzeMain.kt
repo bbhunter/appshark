@@ -25,8 +25,8 @@ import net.bytedance.security.app.android.AndroidUtils.loadDynamicRegisterReceiv
 import net.bytedance.security.app.android.AndroidUtils.parseApk
 import net.bytedance.security.app.engineconfig.EngineConfig
 import net.bytedance.security.app.util.Json
+import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.util.profiler
-import java.nio.file.Files
 import java.nio.file.Paths
 
 
@@ -86,7 +86,11 @@ fun main(args: Array<String>) {
     }
     val configPath = args[0]
     try {
-        val configJson = String(Files.readAllBytes(Paths.get(configPath)))
+        val configJson = SecureFileIO.readUtf8(
+            Paths.get(configPath),
+            SecureFileIO.MAX_ARGUMENT_CONFIG_BYTES,
+            "Argument config"
+        )
         val argumentConfig: ArgumentConfig = Json.decodeFromString(configJson)
         cfg = argumentConfig
         ArgumentConfig.mergeWithDefaultConfig(argumentConfig)

@@ -80,4 +80,70 @@ internal class SecureFileIOTest {
         assertEquals(root.toRealPath(), written.parent)
         assertEquals("safe", String(Files.readAllBytes(written)))
     }
+
+    @Test
+    fun `rule resolver rejects parent traversal`() {
+        val root = Files.createTempDirectory("rules")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.resolveRuleFile(root, "../outside.json")
+        }
+    }
+
+    @Test
+    fun `rule resolver rejects absolute and non-json paths`() {
+        val root = Files.createTempDirectory("rules")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.resolveRuleFile(root, root.resolve("rule.json").toString())
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.resolveRuleFile(root, "rule.txt")
+        }
+    }
+
+    @Test
+    fun `rule resolver rejects symbolic link escape`() {
+        assumeFalse(System.getProperty("os.name").startsWith("Windows"))
+        val root = Files.createTempDirectory("rules")
+        val outside = Files.createTempFile("outside-rule", ".json")
+        Files.createSymbolicLink(root.resolve("linked.json"), outside)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.resolveRuleFile(root, "linked.json")
+        }
+    }
+
+    @Test
+    fun `rule resolver accepts nested json5 file inside root`() {
+        val root = Files.createTempDirectory("rules")
+        val nested = Files.createDirectories(root.resolve("nested")).resolve("common.json5")
+        Files.writeString(nested, "{}")
+
+        val resolved = SecureFileIO.resolveRuleFile(root, "nested/common.json5")
+
+        assertEquals(nested.toRealPath(), resolved)
+    }
+
+    @Test
+    fun `bounded reader rejects oversized files`() {
+        val file = Files.createTempFile("large-rule", ".json")
+        Files.write(file, ByteArray(33) { 'a'.code.toByte() })
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.readUtf8(file, 32, "rule file")
+        }
+    }
+
+    @Test
+    fun `bounded reader accepts exactly the configured byte limit`() {
+        val file = Files.createTempFile("bounded-rule", ".json")
+        val content = "规则".toByteArray(Charsets.UTF_8)
+        Files.write(file, content)
+
+        assertEquals(
+            "规则",
+            SecureFileIO.readUtf8(file, content.size.toLong(), "rule file")
+        )
+    }
 }

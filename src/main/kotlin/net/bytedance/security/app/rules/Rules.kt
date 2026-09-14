@@ -23,8 +23,8 @@ import kotlinx.serialization.json.jsonObject
 import net.bytedance.security.app.Log
 import net.bytedance.security.app.RuleData
 import net.bytedance.security.app.util.Json
+import net.bytedance.security.app.util.SecureFileIO
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Paths
 
 class Rules(val rulePaths: List<String>, val factory: IRuleFactory) : IRulesForContext {
@@ -86,7 +86,11 @@ class Rules(val rulePaths: List<String>, val factory: IRuleFactory) : IRulesForC
             val jsonStr =
                 withContext(Dispatchers.IO) {
                     try {
-                        String(Files.readAllBytes(Paths.get(path)))
+                        SecureFileIO.readUtf8(
+                            Paths.get(path),
+                            SecureFileIO.MAX_RULE_FILE_BYTES,
+                            "Rule file"
+                        )
                     } catch (e: IOException) {
                         Log.logErr("read config file $path failed")
                         throw Exception("read config file $path failed")

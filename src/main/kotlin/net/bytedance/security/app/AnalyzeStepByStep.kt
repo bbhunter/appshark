@@ -25,6 +25,7 @@ import net.bytedance.security.app.ruleprocessor.TaintFlowRuleProcessor
 import net.bytedance.security.app.rules.RuleFactory
 import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.taintflow.TaintAnalyzer
+import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.util.profiler
 import soot.Scene
 import soot.SootClass
@@ -37,13 +38,18 @@ import kotlin.streams.toList
 
 class AnalyzeStepByStep {
     suspend fun loadRules(ruleList: String, targetSdk: Int, minSdk: Int): Rules {
+        val ruleRoot = Paths.get(getConfig().rulePath)
         val rulePathList = if (ruleList.isNotEmpty())
-            ruleList.split(",").map { "${getConfig().rulePath}/${it.trim()}" }.toList()
+            ruleList.split(",")
+                .map { SecureFileIO.resolveRuleFile(ruleRoot, it.trim()).toString() }
         else
             withContext(Dispatchers.IO) {
-                Files.walk(Paths.get(getConfig().rulePath), 1)
-            }.filter { it.pathString.endsWith(".json") }.map { it.pathString }
-                .toList()
+                Files.walk(ruleRoot, 1).use { paths ->
+                    paths.filter { it.pathString.endsWith(".json") }
+                        .map { it.pathString }
+                        .toList()
+                }
+            }
         val rules = Rules(rulePathList, RuleFactory())
         rules.loadRules(targetSdk, minSdk)
         return rules

@@ -23,7 +23,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import net.bytedance.security.app.*
 import net.bytedance.security.app.util.Json
+import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.util.isFieldSignature
+import java.nio.file.Paths
 
 open class DirectModeRule(name: String, ruleData: RuleData) : TaintFlowRule(name, ruleData), IRuleConstStringPattern,
     IRuleNewInstance,
@@ -176,8 +178,11 @@ open class DirectModeRule(name: String, ruleData: RuleData) : TaintFlowRule(name
     }
 
     private suspend fun loadRuleFromFile(ruleFile: String): JsonObject {
-        val curRulePath = "${getConfig().rulePath}/$ruleFile"
-        val jsonStr = Rules.loadConfigOrQuit(curRulePath)
+        val curRulePath = SecureFileIO.resolveRuleFile(
+            Paths.get(getConfig().rulePath),
+            ruleFile
+        )
+        val jsonStr = Rules.loadConfigOrQuit(curRulePath.toString())
         return Json.parseToJsonElement(jsonStr).jsonObject
     }
 

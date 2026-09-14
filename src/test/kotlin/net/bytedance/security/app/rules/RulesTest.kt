@@ -18,10 +18,17 @@
 package net.bytedance.security.app.rules
 
 import kotlinx.coroutines.runBlocking
+import net.bytedance.security.app.AnalyzeStepByStep
+import net.bytedance.security.app.ArgumentConfig
+import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.RuleDescription
+import net.bytedance.security.app.RuleObjBody
+import net.bytedance.security.app.cfg
 import net.bytedance.security.app.getConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import java.io.File
+import java.nio.file.Files
 
 internal class RulesTest {
 
@@ -85,6 +92,70 @@ internal class RulesTest {
             (9..10).toList() + listOf(15) + (25..30).toList() + (45..50).toList(),
             Rules.parseSdkVersion(":10, 15, 25:30, 45:")
         )
+    }
+
+    @Test
+    fun `explicit rule list cannot escape configured rule root`() {
+        val previousConfig = cfg
+        val parent = Files.createTempDirectory("appshark-rules")
+        val root = Files.createDirectory(parent.resolve("rules"))
+        Files.writeString(parent.resolve("outside.json"), "{}")
+        cfg = ArgumentConfig(apkPath = "app.apk", rulePath = root.toString())
+
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    AnalyzeStepByStep().loadRules("../outside.json", -1, -1)
+                }
+            }
+        } finally {
+            cfg = previousConfig
+        }
+    }
+
+    @Test
+    fun `explicit nested rule file inside configured root loads`() {
+        val previousConfig = cfg
+        val root = Files.createTempDirectory("appshark-rules")
+        val nested = Files.createDirectories(root.resolve("nested"))
+        Files.writeString(nested.resolve("empty.json5"), "{}")
+        cfg = ArgumentConfig(apkPath = "app.apk", rulePath = root.toString())
+
+        try {
+            val rules = runBlocking {
+                AnalyzeStepByStep().loadRules("nested/empty.json5", -1, -1)
+            }
+            assertTrue(rules.allRules.isEmpty())
+        } finally {
+            cfg = previousConfig
+        }
+    }
+
+    @Test
+    fun `direct mode nested rule reference cannot escape configured rule root`() {
+        val previousConfig = cfg
+        val parent = Files.createTempDirectory("appshark-rules")
+        val root = Files.createDirectory(parent.resolve("rules"))
+        Files.writeString(parent.resolve("outside.json"), "{}")
+        cfg = ArgumentConfig(apkPath = "app.apk", rulePath = root.toString())
+
+        try {
+            val rule = DirectModeRule(
+                "testRule",
+                RuleData(
+                    desc = RuleDescription(name = "testRule"),
+                    sourceRuleObj = listOf(RuleObjBody(ruleFile = "../outside.json")),
+                    traceDepth = 8
+                )
+            )
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    rule.initIfNeeded()
+                }
+            }
+        } finally {
+            cfg = previousConfig
+        }
     }
 
     companion object {

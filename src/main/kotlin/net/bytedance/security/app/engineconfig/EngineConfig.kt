@@ -22,8 +22,8 @@ import kotlinx.serialization.Serializable
 import net.bytedance.security.app.Log
 import net.bytedance.security.app.getConfig
 import net.bytedance.security.app.util.Json
+import net.bytedance.security.app.util.SecureFileIO
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Paths
 
 
@@ -97,7 +97,11 @@ object EngineConfig {
     fun loadConfigOrQuit(path: String): String {
         Log.logInfo("Load config file $path")
         val jsonStr = try {
-            String(Files.readAllBytes(Paths.get(path)))
+            SecureFileIO.readUtf8(
+                Paths.get(path),
+                SecureFileIO.MAX_ENGINE_CONFIG_BYTES,
+                "Engine config"
+            )
         } catch (e: IOException) {
             Log.logErr("read config file $path failed")
             throw Exception("read config file $path failed")
