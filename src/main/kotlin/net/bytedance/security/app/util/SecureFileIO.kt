@@ -28,6 +28,7 @@ object SecureFileIO {
     const val MAX_ARGUMENT_CONFIG_BYTES = 1L * 1024 * 1024
     const val MAX_ENGINE_CONFIG_BYTES = 16L * 1024 * 1024
     const val MAX_RULE_FILE_BYTES = 8L * 1024 * 1024
+    const val MAX_JAVA_SOURCE_BYTES = 8L * 1024 * 1024
 
     private const val MAX_REPORT_STEM_LENGTH = 120
 

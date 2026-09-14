@@ -21,12 +21,12 @@ import net.bytedance.security.app.Log
 import net.bytedance.security.app.PLUtils
 import net.bytedance.security.app.engineconfig.isLibraryClass
 import net.bytedance.security.app.util.JavaAST
+import net.bytedance.security.app.util.SecureFileIO
 import soot.Scene
 import soot.SootMethod
 import soot.options.Options
 import java.io.*
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 
 /**
 return method's full Java source code,
@@ -135,7 +135,11 @@ private fun loadClass(className: String): String? {
         return null
     }
     try {
-        return String(Files.readAllBytes(javaFile.toPath()))
+        return SecureFileIO.readUtf8(
+            javaFile.toPath(),
+            SecureFileIO.MAX_JAVA_SOURCE_BYTES,
+            "Jadx Java source"
+        )
     } catch (e: Exception) {
         Log.logErr("ERROR java file read error $javaSrcPath")
     }
