@@ -29,6 +29,8 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.serializer
 import net.bytedance.security.app.*
 import net.bytedance.security.app.result.model.AnySerializer
+import net.bytedance.security.app.security.ScanToolException
+import net.bytedance.security.app.security.ScanWorkspace
 import net.bytedance.security.app.util.Json
 import soot.RefType
 import soot.Scene
@@ -50,10 +52,10 @@ import soot.jimple.infoflow.android.resources.LayoutFileParser
 import java.io.File
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
-import kotlin.system.exitProcess
 
 interface ManifestVulnerability {
     fun check(manifest: ProcessManifest)
@@ -189,79 +191,28 @@ object AndroidUtils {
     var allowBackup: Boolean? = null
     var usesCleartextTraffic: Boolean? = null
     private var manifestVulnerability: ManifestVulnerability? = null
-    private fun dexToJava(apkPath: String, outPath: String, jadxPath: String) {
-        JavaSourceDir = outPath + PLUtils.JAVA_SRC
-        val thread = Runtime.getRuntime().availableProcessors() / 2
-        try {
-            val start = System.currentTimeMillis()
-            Log.logInfo("==========>Start dex to Java")
-
-            val doneFile = File(JavaSourceDir, ".done")
-
-            if (doneFile.exists()) {
-                Log.logInfo("Using jadx cache")
-                return
-            }
-            JavaSourceDir?.let { File(it).deleteRecursively() }
-            val jadx = if (isWindows()) {
-                File(jadxPath, "jadx.bat").path
-            } else {
-                File(jadxPath, "jadx").path
-            }
-
-            val command = listOf(
-                jadx,
-                "--quiet",
-                "--no-imports",
-                "--show-bad-code",
-                "--no-debug-info",
-                "--output-dir", JavaSourceDir,
-                "--threads-count", thread.toString(),
-                "--export-gradle",
-                apkPath
-            )
-            Log.logInfo("Executing command: ${command.joinToString(" ")}")
-            val processBuilder: Process = ProcessBuilder(command)
-                .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-                .redirectError(ProcessBuilder.Redirect.INHERIT)
-                .start()
-
-            val timeoutMillis = 1800000L // 1800 seconds
-            if (!processBuilder.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
-                processBuilder.destroyForcibly()
-                val exitCode = processBuilder.waitFor()
-                Log.logInfo("command ${command.joinToString(" ")} exit with $exitCode")
-            }
-
-            val exitCode = try {
-                processBuilder.exitValue()
-            } catch (e: IllegalThreadStateException) {
-                // Process is still running
-                processBuilder.destroyForcibly()
-                processBuilder.waitFor()
-                -1 // Use a special code to indicate failure
-            }
-
-            if (exitCode == 0) {
-                Log.logInfo("Command executed successfully.")
-                doneFile.createNewFile()
-            } else {
-                Log.logInfo("Command execution failed with exit code: $exitCode")
-            }
-
-            Log.logInfo("Dex to Java Done " + (System.currentTimeMillis() - start) + "ms<==========")
-        } catch (e: Exception) {
-            e.printStackTrace()
+    private fun dexToJava(workspace: ScanWorkspace, jadxPath: String) {
+        val start = System.currentTimeMillis()
+        Log.logInfo("==========>Start dex to Java")
+        val executable = if (isWindows()) {
+            Path.of(jadxPath, "jadx.bat")
+        } else {
+            Path.of(jadxPath, "jadx")
         }
+        JadxRunner().run(
+            executable = executable,
+            workspace = workspace,
+            limits = getConfig().securityLimits,
+            configuredThreads = getConfig().maxThread,
+            timeoutSeconds = minOf(JADX_TIMEOUT_SECONDS, getConfig().securityLimits.maxScanSeconds)
+        )
+        JavaSourceDir = workspace.jadxOutput.toString() + File.separator
+        Log.logInfo("Dex to Java Done " + (System.currentTimeMillis() - start) + "ms<==========")
         Log.logInfo("write Java Source to $JavaSourceDir")
     }
 
-    fun parseApk(apkPath: String, jadxPath: String, outPath: String, apkNameToolPath: String) {
-        try {
-            parseApkInternal(apkPath, jadxPath, outPath, apkNameToolPath)
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-        }
+    fun parseApk(workspace: ScanWorkspace, jadxPath: String, apkNameToolPath: String) {
+        parseApkInternal(workspace, jadxPath, apkNameToolPath)
     }
 
     fun isWindows(): Boolean {
@@ -274,7 +225,12 @@ object AndroidUtils {
      * 2. Convert dex to Java
      * 3. Address manifest bugs
      */
-    private fun parseApkInternal(apkPath: String, jadxPath: String, outPath: String, apkNameToolPath: String) {
+    private fun parseApkInternal(
+        workspace: ScanWorkspace,
+        jadxPath: String,
+        apkNameToolPath: String
+    ) {
+        val apkPath = workspace.apkSnapshot.toString()
         if (!isWindows()) {
             try {
                 val processBuilder = ProcessBuilder(
@@ -283,7 +239,10 @@ object AndroidUtils {
                 )
                 Log.logInfo(processBuilder.command().toString())
                 val process = processBuilder.start()
-                process.waitFor()
+                if (!process.waitFor(APK_NAME_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    throw ScanToolException("APK label extraction timed out")
+                }
                 val stream = process.inputStream
                 val out = ByteArray(128)
                 val ret = stream.read(out)
@@ -292,14 +251,13 @@ object AndroidUtils {
                     AppLabelName = AppLabelName.trim { it <= ' ' }
                 }
             } catch (e: Exception) {
-                Log.logErr("$apkPath -> $outPath")
-                e.printStackTrace()
+                Log.logWarn("Optional APK label extraction failed: ${e.message}")
             }
         }
         apkAbsPath = apkPath
         if (getConfig().javaSource == true) {
             Log.logDebug("Dex to java code")
-            dexToJava(apkPath, outPath, jadxPath)
+            dexToJava(workspace, jadxPath)
         }
 
         val targetAPK = File(apkAbsPath!!)
@@ -308,28 +266,13 @@ object AndroidUtils {
         try {
             resources!!.parse(targetAPK.absolutePath)
         } catch (e: IOException) {
-            e.printStackTrace()
+            throw ScanToolException("Failed to parse APK resources", e)
         }
         Log.logDebug("Load manifest")
         val manifest: ProcessManifest = try {
             ProcessManifest(targetAPK, resources)
         } catch (e: Exception) {
-            e.printStackTrace()
-            try {
-                val apk = ApkHandler(targetAPK)
-                val manifestInputStream = apk.getInputStream("AndroidManifest.xml")
-                val aXmlHandler = AXmlHandler(manifestInputStream)
-                val manifests = aXmlHandler.getNodesWithTag("manifest")
-                if (manifests.size > 0) {
-                    val manifest = manifests[0]
-                    PackageName = manifest.getAttribute("package").value as String
-                    Log.logDebug("package $PackageName")
-                }
-            } catch (ioException: IOException) {
-                ioException.printStackTrace()
-                exitProcess(31)
-            }
-            return
+            throw ScanToolException("Failed to parse APK manifest", e)
         }
 
         getAppLabelNameIfNeeded(manifest)
@@ -355,7 +298,11 @@ object AndroidUtils {
         TargetSdk = manifest.targetSdkVersion
         Log.logDebug("TargetSdk $TargetSdk")
         layoutFileParser = LayoutFileParser(manifest.packageName, resources)
-        layoutFileParser!!.parseLayoutFileDirect(apkPath)
+        try {
+            layoutFileParser!!.parseLayoutFileDirect(apkPath)
+        } catch (e: Exception) {
+            throw ScanToolException("Failed to parse APK layouts", e)
+        }
         parseAllComponents(manifest)
         this.manifestVulnerability?.check(manifest)
 
@@ -369,6 +316,9 @@ object AndroidUtils {
 
         isApkParsed = true
     }
+
+    private const val APK_NAME_TIMEOUT_SECONDS = 30L
+    private const val JADX_TIMEOUT_SECONDS = 1800L
 
     private fun getAppLabelNameIfNeeded(manifest: ProcessManifest) {
         //return if empty

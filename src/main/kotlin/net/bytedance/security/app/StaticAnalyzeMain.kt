@@ -24,6 +24,7 @@ import net.bytedance.security.app.android.AndroidUtils
 import net.bytedance.security.app.android.AndroidUtils.loadDynamicRegisterReceiver
 import net.bytedance.security.app.android.AndroidUtils.parseApk
 import net.bytedance.security.app.engineconfig.EngineConfig
+import net.bytedance.security.app.security.ScanRuntime
 import net.bytedance.security.app.util.Json
 import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.util.profiler
@@ -49,7 +50,7 @@ object StaticAnalyzeMain {
         logInfo("soot init done")
         PLUtils.createCustomClass()
         profiler.parseApk.start()
-        parseApk(apkPath, jadxPath, argumentConfig.outPath, apkNameTool)
+        parseApk(ScanRuntime.workspace(), jadxPath, apkNameTool)
         logInfo("apk parse done")
         profiler.parseApk.end()
 
