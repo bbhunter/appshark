@@ -129,10 +129,13 @@ internal class SanitizerFactoryTest {
 //            PLUtils.DumpClass("net.bytedance.security.app.sanitizer.testdata.ZipSlip")
             val sanitizers = SanitizerFactory.createSanitizers(taintedRule, ctx)
             assertTrue(sanitizers.size == 1)
-            val s0 = sanitizers[0]
-            assertTrue(s0 is TaintCheckSanitizer)
-//            assertTrue((s0 as ConstStringCheckSanitizer).consts.size == 1)
-            val taints = (s0 as TaintCheckSanitizer).taints
+            val fieldSanitizer = sanitizers[0]
+            assertTrue(fieldSanitizer is SanitizeOrRules)
+            val possibleMatches = (fieldSanitizer as SanitizeOrRules).rules
+            assertEquals(1, possibleMatches.size)
+            val possibleMatch = possibleMatches[0]
+            assertTrue(possibleMatch is TaintCheckSanitizer)
+            val taints = (possibleMatch as TaintCheckSanitizer).taints
             assertTrue(taints.size == 1)
             assertTrue(taints.first().method.name == "UnZipFolder")
             println("sanitizers=${taints}")
