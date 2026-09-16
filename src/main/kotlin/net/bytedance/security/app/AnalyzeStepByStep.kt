@@ -39,7 +39,12 @@ import kotlin.io.path.pathString
 import kotlin.streams.toList
 
 class AnalyzeStepByStep {
-    suspend fun loadRules(ruleList: String, targetSdk: Int, minSdk: Int): Rules {
+    data class PreparedRules(
+        val paths: List<String>,
+        val loadContext: RuleLoadContext,
+    )
+
+    suspend fun prepareRules(ruleList: String): PreparedRules {
         val ruleRoot = Paths.get(getConfig().rulePath)
         val rulePathList = if (ruleList.isNotEmpty())
             ruleList.split(",")
@@ -57,10 +62,23 @@ class AnalyzeStepByStep {
                         .toList()
                 }
             }
+        val loadContext = RuleLoadContext(ruleRoot, getConfig().securityLimits)
+        loadContext.loadTopLevel(rulePathList.map(Paths::get))
+        return PreparedRules(rulePathList, loadContext)
+    }
+
+    suspend fun loadRules(ruleList: String, targetSdk: Int, minSdk: Int): Rules =
+        loadRules(prepareRules(ruleList), targetSdk, minSdk)
+
+    suspend fun loadRules(
+        preparedRules: PreparedRules,
+        targetSdk: Int,
+        minSdk: Int
+    ): Rules {
         val rules = Rules(
-            rulePathList,
+            preparedRules.paths,
             RuleFactory(),
-            RuleLoadContext(ruleRoot, getConfig().securityLimits)
+            preparedRules.loadContext
         )
         rules.loadRules(targetSdk, minSdk)
         return rules

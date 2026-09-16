@@ -52,6 +52,8 @@ object StaticAnalyzeMain {
 
         logInfo("started...")
         profiler.startMemoryProfile()
+        val preparedRules = v3.prepareRules(argumentConfig.rules)
+        logInfo("rule graph validated")
         v3.initSoot(
             AnalyzeStepByStep.TYPE.APK,
             apkPath,
@@ -66,7 +68,11 @@ object StaticAnalyzeMain {
         profiler.parseApk.end()
 
         profiler.preProcessor.start()
-        val rules = v3.loadRules(argumentConfig.rules, AndroidUtils.TargetSdk, AndroidUtils.MinSdk)
+        val rules = v3.loadRules(
+            preparedRules,
+            AndroidUtils.TargetSdk,
+            AndroidUtils.MinSdk
+        )
         val provenance = LinkedHashMap<String, String>()
         val workspace = ScanRuntime.workspace()
         provenance["apkSha256"] = workspace.apkSha256
