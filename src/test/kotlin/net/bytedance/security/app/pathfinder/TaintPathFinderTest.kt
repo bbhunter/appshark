@@ -18,25 +18,64 @@
 package net.bytedance.security.app.pathfinder
 
 import kotlinx.coroutines.runBlocking
+import net.bytedance.security.app.ArgumentConfig
+import net.bytedance.security.app.cfg
 import net.bytedance.security.app.result.OutputSecResults
 import net.bytedance.security.app.ruleprocessor.DirectModeProcessor
 import net.bytedance.security.app.ruleprocessor.RuleProcessorFactory
 import net.bytedance.security.app.ruleprocessor.RuleProcessorFactoryTest
-import net.bytedance.security.app.rules.RuleFactory
-import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.rules.TaintFlowRule
+import net.bytedance.security.app.security.ScanBudget
+import net.bytedance.security.app.security.ScanRuntime
+import net.bytedance.security.app.security.ScanWorkspace
+import net.bytedance.security.app.security.SecurityTestFixtures.testLimits
+import net.bytedance.security.app.security.SecurityTestFixtures.zipOf
 import net.bytedance.security.app.taintflow.TwoStagePointerAnalyzeTest.Companion.createDefaultTwoStagePointerAnalyze
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
 import test.SootHelper
 import test.TestHelper
 
 internal class TaintPathFinderTest {
+    private val previousConfig = cfg
+    private lateinit var workspace: ScanWorkspace
+
     init {
         SootHelper.initSoot(
             "TaintPathFinderTest",
             listOf("${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata")
         )
+    }
+
+    @BeforeEach
+    fun installScanRuntime() {
+        val limits = testLimits()
+        val out = Files.createTempDirectory("appshark-taint-path")
+        cfg = ArgumentConfig(
+            apkPath = "fixture.apk",
+            outPath = out.toString(),
+            configPath = Path.of("config").toAbsolutePath().toString(),
+            rulePath = Path.of("config/rules").toAbsolutePath().toString(),
+            securityLimits = limits
+        )
+        workspace = ScanWorkspace.create(
+            out,
+            zipOf("classes.dex" to ByteArray(8)),
+            limits
+        )
+        ScanRuntime.install(ScanBudget(limits), workspace)
+    }
+
+    @AfterEach
+    fun clearScanRuntime() {
+        OutputSecResults.testClearVulnerabilityItems()
+        ScanRuntime.clear()
+        workspace.close()
+        cfg = previousConfig
     }
 
 

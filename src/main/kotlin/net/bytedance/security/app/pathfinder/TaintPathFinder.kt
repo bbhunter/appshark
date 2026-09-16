@@ -294,11 +294,12 @@ class TaintPathFinder(
         val g = analyzeContext.variableFlowGraph
         val path = bfsSearch(srcPtr, sinkPtrSet, g, getConfig().maxPathLength, rule.name) ?: return
         val result = PathResult(path)
-        try {
-            TaintPathModeHtmlWriter(OutputSecResults, analyzer, result, rule).addVulnerabilityAndSaveResultToOutput()
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-        }
+        TaintPathModeHtmlWriter(
+            OutputSecResults,
+            analyzer,
+            result,
+            rule
+        ).addVulnerabilityAndSaveResultToOutput()
     }
 
 
