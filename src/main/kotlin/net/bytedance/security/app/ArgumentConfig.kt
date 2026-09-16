@@ -19,6 +19,7 @@ package net.bytedance.security.app
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.bytedance.security.app.security.SecurityLimits
 
 @Serializable
 class ArgumentConfig(
@@ -63,6 +64,7 @@ class ArgumentConfig(
     var skipPointerPropagationForLibraryMethod: Boolean = true, //skip pointer propagation for library methods,if skip may lead to false negatives.
     //if exists, use it to replace Package in EngineConfig.json5
     var libraryPackage: List<String>? = null,
+    var securityLimits: SecurityLimits = SecurityLimits(),
 ) {
     fun getMaxPreprocessorThread(): Int {
         return this.maxThread ?: this.maxPreprocessorThread
@@ -70,6 +72,26 @@ class ArgumentConfig(
 
     fun getMaxPointerAnalyzeThread(): Int {
         return this.maxThread ?: this.maxPointerAnalyzeThread
+    }
+
+    fun validate(): ArgumentConfig {
+        require(maxPointerAnalyzeTime in 1..86_400) {
+            "maxPointerAnalyzeTime must be between 1 and 86400"
+        }
+        require((maxThread ?: 1) in 1..256) { "maxThread must be between 1 and 256" }
+        require(getMaxPreprocessorThread() in 1..256) {
+            "maxPreprocessorThread must be between 1 and 256"
+        }
+        require(getMaxPointerAnalyzeThread() in 1..256) {
+            "maxPointerAnalyzeThread must be between 1 and 256"
+        }
+        require(ruleMaxAnalyzer in 1..1_000_000) {
+            "ruleMaxAnalyzer must be between 1 and 1000000"
+        }
+        require(manifestTrace in 0..256) { "manifestTrace must be between 0 and 256" }
+        require(maxPathLength in 1..4_096) { "maxPathLength must be between 1 and 4096" }
+        securityLimits.validate()
+        return this
     }
 
     companion object {
