@@ -22,19 +22,23 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonObject
 import net.bytedance.security.app.Log
 import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.getConfig
+import net.bytedance.security.app.security.RuleLoadContext
 import net.bytedance.security.app.util.Json
 import net.bytedance.security.app.util.SecureFileIO
 import java.io.IOException
 import java.nio.file.Paths
 
-class Rules(val rulePaths: List<String>, val factory: IRuleFactory) : IRulesForContext {
+class Rules(
+    val rulePaths: List<String>,
+    val factory: IRuleFactory,
+    private val loadContext: RuleLoadContext
+) : IRulesForContext {
     val allRules: MutableList<IRule> = ArrayList()
     val UNLIMITED = -1
 
     suspend fun loadRules(targetSdk: Int = UNLIMITED, minSdk: Int = UNLIMITED) {
-        rulePaths.forEach {
-            val jsonStr = loadConfigOrQuit(it)
-            val rules = Json.parseToJsonElement(jsonStr)
+        loadContext.loadTopLevel(rulePaths.map(Paths::get)).forEach { (_, rules) ->
             for ((ruleName, ruleBody) in rules.jsonObject) {
                 val ruleData: RuleData = Json.decodeFromJsonElement(ruleBody)
                 if (ruleData.sanitizer != null) {   // Compatible with old and new rules
@@ -43,7 +47,7 @@ class Rules(val rulePaths: List<String>, val factory: IRuleFactory) : IRulesForC
                 }
                 if ((targetSdk == UNLIMITED || targetSdk in parseSdkVersion(ruleData.targetSdk)) &&
                     (minSdk == UNLIMITED || parseSdkVersion("$minSdk:").any { it in parseSdkVersion(ruleData.runtimeSdk) })) {
-                    val rule = factory.create(ruleName, ruleData)
+                    val rule = factory.create(ruleName, ruleData, loadContext)
                     allRules.add(rule)
                 } else {
                     Log.logDebug("ignore rule: $ruleName")
@@ -51,6 +55,8 @@ class Rules(val rulePaths: List<String>, val factory: IRuleFactory) : IRulesForC
             }
         }
     }
+
+    fun ruleDigests(): Map<String, String> = loadContext.ruleDigests()
 
     override fun constStringPatterns(): Set<String> {
         val s = HashSet<String>()

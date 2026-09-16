@@ -18,8 +18,9 @@
 package net.bytedance.security.app.rules
 
 import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.security.RuleLoadContext
 
 
 interface IRuleFactory {
-    suspend fun create(name: String, ruleData: RuleData): IRule
+    suspend fun create(name: String, ruleData: RuleData, loadContext: RuleLoadContext): IRule
 }

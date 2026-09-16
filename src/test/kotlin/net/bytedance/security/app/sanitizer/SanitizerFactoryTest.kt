@@ -24,8 +24,6 @@ import net.bytedance.security.app.MethodFinder
 import net.bytedance.security.app.pointer.PLLocalPointer
 import net.bytedance.security.app.ruleprocessor.RuleProcessorFactoryTest.Companion.createContext
 import net.bytedance.security.app.rules.DirectModeRule
-import net.bytedance.security.app.rules.RuleFactory
-import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.taintflow.TwoStagePointerAnalyzeTest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -55,10 +53,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun createConstStringSanitizers() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipConstStringSanitizer.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipConstStringSanitizer.json"
         )
         runBlocking {
             rules.loadRules()
@@ -119,10 +115,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun createFieldSanitizers() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipFieldSanitizer.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipFieldSanitizer.json"
         )
         runBlocking {
             rules.loadRules()
@@ -148,10 +142,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun createMethod1() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipMethodCheck1.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipMethodCheck1.json"
         )
         runBlocking {
             rules.loadRules()
@@ -181,10 +173,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun createMethod4() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipMethodCheck4.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipMethodCheck4.json"
         )
         runBlocking {
             rules.loadRules()
@@ -245,10 +235,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun testPendingIntentMutableService() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableService.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableService.json"
         )
         runBlocking {
             rules.loadRules()
@@ -270,10 +258,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun testPendingIntentMutableProvider() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableProvider.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableProvider.json"
         )
         runBlocking {
             rules.loadRules()
@@ -322,10 +308,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun testPendingIntentMutableBroadcast() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableBroadcast.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableBroadcast.json"
         )
         runBlocking {
             rules.loadRules()
@@ -362,10 +346,8 @@ internal class SanitizerFactoryTest {
 
     @Test
     fun testPendingIntentMutableActivity() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableActivity.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/pendingIntentMutableActivity.json"
         )
         runBlocking {
             rules.loadRules()

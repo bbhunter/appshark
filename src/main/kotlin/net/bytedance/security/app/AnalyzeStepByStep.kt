@@ -26,6 +26,7 @@ import net.bytedance.security.app.rules.RuleFactory
 import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.taintflow.TaintAnalyzer
 import net.bytedance.security.app.util.SecureFileIO
+import net.bytedance.security.app.security.RuleLoadContext
 import net.bytedance.security.app.util.profiler
 import soot.Scene
 import soot.SootClass
@@ -55,7 +56,11 @@ class AnalyzeStepByStep {
                         .toList()
                 }
             }
-        val rules = Rules(rulePathList, RuleFactory())
+        val rules = Rules(
+            rulePathList,
+            RuleFactory(),
+            RuleLoadContext(ruleRoot, getConfig().securityLimits)
+        )
         rules.loadRules(targetSdk, minSdk)
         return rules
     }

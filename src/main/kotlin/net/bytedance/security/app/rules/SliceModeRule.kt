@@ -18,8 +18,13 @@
 package net.bytedance.security.app.rules
 
 import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.security.RuleLoadContext
 
-open class SliceModeRule(name: String, ruleData: RuleData) : DirectModeRule(name, ruleData) {
+open class SliceModeRule(
+    name: String,
+    ruleData: RuleData,
+    loadContext: RuleLoadContext
+) : DirectModeRule(name, ruleData, loadContext) {
     override val mode: String = "SliceMode"
     val isSliceEnable: Boolean = true
 

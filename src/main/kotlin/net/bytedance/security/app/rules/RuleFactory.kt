@@ -18,19 +18,20 @@
 package net.bytedance.security.app.rules
 
 import net.bytedance.security.app.RuleData
+import net.bytedance.security.app.security.RuleLoadContext
 
 open class RuleFactory : IRuleFactory {
-    override suspend fun create(name: String, ruleData: RuleData): IRule {
+    override suspend fun create(name: String, ruleData: RuleData, loadContext: RuleLoadContext): IRule {
         if (ruleData.ConstNumberMode == true) {
             return ConstNumberModeRule(name, ruleData)
         } else if (ruleData.ConstStringMode == true) {
             return ConstStringModeRule(name, ruleData)
         } else if (ruleData.SliceMode == true) {
-            val r = SliceModeRule(name, ruleData)
+            val r = SliceModeRule(name, ruleData, loadContext)
             r.initIfNeeded()
             return r
         } else if (ruleData.DirectMode == true) {
-            val r = DirectModeRule(name, ruleData)
+            val r = DirectModeRule(name, ruleData, loadContext)
             r.initIfNeeded()
             return r
         } else if (ruleData.APIMode == true) {

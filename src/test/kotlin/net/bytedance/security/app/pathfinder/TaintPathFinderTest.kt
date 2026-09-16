@@ -41,10 +41,8 @@ internal class TaintPathFinderTest {
 
 
     fun createTwoStagePointerAnalyzerFromRule(ruleFileName: String): TaintPathFinder {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/$ruleFileName"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/$ruleFileName"
         )
         val finder: TaintPathFinder
         runBlocking {

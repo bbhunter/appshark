@@ -20,8 +20,6 @@ package net.bytedance.security.app.ruleprocessor
 import kotlinx.coroutines.runBlocking
 import net.bytedance.security.app.MethodFinder
 import net.bytedance.security.app.PLUtils
-import net.bytedance.security.app.rules.RuleFactory
-import net.bytedance.security.app.rules.Rules
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -43,10 +41,8 @@ internal class DirectModeProcessorTest {
 
     @Test
     fun createAnalyzers() {
-        val rules = Rules(
-            listOf(
-                "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipDirectMode.json"
-            ), RuleFactory()
+        val rules = TestHelper.rulesFromFile(
+            "${TestHelper.getTestClassSourceFileDirectory(this.javaClass.name)}/testdata/unZipSlipDirectMode.json"
         )
 
         runBlocking {

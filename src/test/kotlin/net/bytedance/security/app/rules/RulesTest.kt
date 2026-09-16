@@ -25,11 +25,13 @@ import net.bytedance.security.app.RuleDescription
 import net.bytedance.security.app.RuleObjBody
 import net.bytedance.security.app.cfg
 import net.bytedance.security.app.getConfig
+import net.bytedance.security.app.security.RuleLoadContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Paths
 
 internal class RulesTest {
 
@@ -38,7 +40,8 @@ internal class RulesTest {
             listOf(
                 "${getConfig().rulePath}/unZipSlip.json",
             ),
-            RuleFactory()
+            RuleFactory(),
+            RuleLoadContext(Paths.get(getConfig().rulePath), getConfig().securityLimits)
         )
         runBlocking {
             rules.loadRules()
@@ -69,7 +72,8 @@ internal class RulesTest {
     fun testAllRules() {
         val rules = Rules(
             getAllRules(),
-            RuleFactory()
+            RuleFactory(),
+            RuleLoadContext(Paths.get(getConfig().rulePath), getConfig().securityLimits)
         )
         runBlocking {
             rules.loadRules()
@@ -168,7 +172,8 @@ internal class RulesTest {
                     desc = RuleDescription(name = "testRule"),
                     sourceRuleObj = listOf(RuleObjBody(ruleFile = "../outside.json")),
                     traceDepth = 8
-                )
+                ),
+                RuleLoadContext(root, getConfig().securityLimits)
             )
             assertThrows(IllegalArgumentException::class.java) {
                 runBlocking {
@@ -196,7 +201,8 @@ internal class RulesTest {
         fun createDefaultRules(): Rules {
             val rules = Rules(
                 getAllRules(),
-                RuleFactory()
+                RuleFactory(),
+                RuleLoadContext(Paths.get(getConfig().rulePath), getConfig().securityLimits)
             )
             runBlocking {
                 rules.loadRules()

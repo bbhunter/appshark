@@ -18,9 +18,14 @@
 package test
 
 import net.bytedance.security.app.MethodFinder
+import net.bytedance.security.app.rules.RuleFactory
+import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.sanitizer.SanitizerFactory
+import net.bytedance.security.app.security.RuleLoadContext
+import net.bytedance.security.app.security.SecurityLimits
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.nio.file.Paths
 
 object TestHelper {
     /**
@@ -37,6 +42,15 @@ object TestHelper {
     fun appsharkInit() {
         MethodFinder.clearCache()
         SanitizerFactory.clearCache()
+    }
+
+    fun rulesFromFile(ruleFilePath: String): Rules {
+        val path = Paths.get(ruleFilePath).toAbsolutePath().normalize()
+        return Rules(
+            listOf(path.toString()),
+            RuleFactory(),
+            RuleLoadContext(path.parent, SecurityLimits())
+        )
     }
 
     @Test
