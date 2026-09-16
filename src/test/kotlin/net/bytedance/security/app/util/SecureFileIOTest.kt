@@ -146,4 +146,26 @@ internal class SecureFileIOTest {
             SecureFileIO.readUtf8(file, content.size.toLong(), "rule file")
         )
     }
+
+    @Test
+    fun `streaming digest rejects a file that exceeds the limit`() {
+        val file = Files.createTempFile("large-digest", ".bin")
+        Files.write(file, ByteArray(33))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.sha256(file, 32)
+        }
+    }
+
+    @Test
+    fun `copy and digest refuses oversized input without publishing target`() {
+        val source = Files.createTempFile("large-copy", ".bin")
+        val target = source.parent.resolve("copy-${source.fileName}")
+        Files.write(source, ByteArray(33))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            SecureFileIO.copyAndSha256(source, target, 32)
+        }
+        assertFalse(Files.exists(target))
+    }
 }

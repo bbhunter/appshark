@@ -19,9 +19,12 @@ package net.bytedance.security.app.util
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.FileVisitResult
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
 
 object SecureFileIO {
@@ -149,10 +152,92 @@ object SecureFileIO {
         return output.toString(StandardCharsets.UTF_8.name())
     }
 
+    fun sha256(path: Path, maxBytes: Long): String {
+        require(maxBytes > 0) { "Maximum size must be positive" }
+        val digest = MessageDigest.getInstance("SHA-256")
+        var total = 0L
+        Files.newInputStream(path).use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) {
+                    break
+                }
+                total = Math.addExact(total, read.toLong())
+                require(total <= maxBytes) { "File exceeds maximum size of $maxBytes bytes" }
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().toHex()
+    }
+
+    fun copyAndSha256(source: Path, target: Path, maxBytes: Long): String {
+        require(maxBytes > 0) { "Maximum size must be positive" }
+        val digest = MessageDigest.getInstance("SHA-256")
+        var total = 0L
+        try {
+            Files.newInputStream(source).use { input ->
+                Files.newOutputStream(
+                    target,
+                    StandardOpenOption.CREATE_NEW,
+                    StandardOpenOption.WRITE
+                ).use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) {
+                            break
+                        }
+                        total = Math.addExact(total, read.toLong())
+                        require(total <= maxBytes) {
+                            "File exceeds maximum size of $maxBytes bytes"
+                        }
+                        digest.update(buffer, 0, read)
+                        output.write(buffer, 0, read)
+                    }
+                }
+            }
+            return digest.digest().toHex()
+        } catch (e: Exception) {
+            Files.deleteIfExists(target)
+            throw e
+        }
+    }
+
+    fun deleteOwnedTree(root: Path, markerName: String, expectedToken: String) {
+        require(!Files.isSymbolicLink(root)) { "Owned directory must not be a symbolic link" }
+        val realRoot = root.toRealPath(LinkOption.NOFOLLOW_LINKS)
+        val marker = realRoot.resolve(markerName)
+        require(Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS)) {
+            "Owned directory marker is missing"
+        }
+        require(Files.readString(marker, StandardCharsets.UTF_8) == expectedToken) {
+            "Owned directory marker does not match"
+        }
+
+        Files.walkFileTree(realRoot, object : SimpleFileVisitor<Path>() {
+            override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                Files.delete(file)
+                return FileVisitResult.CONTINUE
+            }
+
+            override fun postVisitDirectory(dir: Path, exc: java.io.IOException?): FileVisitResult {
+                if (exc != null) {
+                    throw exc
+                }
+                Files.delete(dir)
+                return FileVisitResult.CONTINUE
+            }
+        })
+    }
+
     private fun sha256(value: String): String =
         MessageDigest.getInstance("SHA-256")
             .digest(value.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { byte ->
-                (byte.toInt() and 0xff).toString(16).padStart(2, '0')
-            }
+            .toHex()
+
+    private fun ByteArray.toHex(): String =
+        joinToString("") { byte ->
+            (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+        }
 }
