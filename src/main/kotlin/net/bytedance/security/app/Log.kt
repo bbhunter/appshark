@@ -20,6 +20,7 @@
 package net.bytedance.security.app
 
 import net.bytedance.security.app.security.ScanLimitExceededException
+import net.bytedance.security.app.security.ScanOutputException
 import net.bytedance.security.app.security.ScanRuntime
 import java.io.File
 import java.io.FileWriter
@@ -27,7 +28,6 @@ import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.system.exitProcess
 
 const val DEBUG = 0
 var INFO = 1
@@ -96,8 +96,7 @@ object Log {
             try {
                 fileWriter.write(buffer.toString())
             } catch (e: IOException) {
-                e.printStackTrace()
-                exitProcess(14)
+                throw ScanOutputException("Failed to write scan log", e)
             }
             buffer.setLength(0)
             lastTimeWrite = now
@@ -128,11 +127,9 @@ object Log {
         logStr(str, ERROR)
     }
 
-    //Log and exit
     fun logFatal(str: String) {
         logErr(str)
-        flushAndClose()
-        exitProcess(-11)
+        throw IllegalArgumentException(str)
     }
 
     @Synchronized

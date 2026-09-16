@@ -96,16 +96,26 @@ class RuleLoadContext(
                 minOf(SecureFileIO.MAX_RULE_FILE_BYTES, limits.maxRuleTotalBytes),
                 "Rule file"
             )
-            val jsonObject = Json.parseToJsonElement(jsonString).jsonObject
-            validateElement(jsonObject)
+            val jsonObject = try {
+                val parsedObject = Json.parseToJsonElement(jsonString).jsonObject
+                validateElement(parsedObject)
 
-            for ((ruleName, ruleElement) in jsonObject) {
-                validateRuleName(ruleName)
-                require(ruleNames.add(ruleName)) { "Duplicate rule name is not allowed" }
-                val ruleData: RuleData = Json.decodeFromJsonElement(ruleElement)
-                referencedFiles(ruleData).forEach { reference ->
-                    loadReferenced(reference)
+                for ((ruleName, ruleElement) in parsedObject) {
+                    validateRuleName(ruleName)
+                    require(ruleNames.add(ruleName)) { "Duplicate rule name is not allowed" }
+                    val ruleData: RuleData = Json.decodeFromJsonElement(ruleElement)
+                    referencedFiles(ruleData).forEach { reference ->
+                        loadReferenced(reference)
+                    }
                 }
+                parsedObject
+            } catch (e: IllegalArgumentException) {
+                throw e
+            } catch (e: Exception) {
+                throw IllegalArgumentException(
+                    "Invalid rule file: ${root.relativize(path)}",
+                    e
+                )
             }
 
             digests[path] = SecureFileIO.sha256(path, SecureFileIO.MAX_RULE_FILE_BYTES)

@@ -17,6 +17,7 @@
 
 package net.bytedance.security.app
 
+import net.bytedance.security.app.security.ScanOutputException
 import net.bytedance.security.app.Log.logDebug
 import net.bytedance.security.app.Log.logInfo
 import soot.*
@@ -92,14 +93,17 @@ object PLUtils {
 
     fun writeFile(filePath: String, str: String) {
         try {
-            val fw = FileWriter(filePath)
-            val out = PrintWriter(fw)
-            out.write(str)
-            out.println()
-            fw.close()
-            out.close()
+            FileWriter(filePath).use { fw ->
+                PrintWriter(fw).use { out ->
+                    out.write(str)
+                    out.println()
+                    if (out.checkError()) {
+                        throw IOException("Failed to write $filePath")
+                    }
+                }
+            }
         } catch (e: IOException) {
-            e.printStackTrace()
+            throw ScanOutputException("Failed to write scan output", e)
         }
     }
 

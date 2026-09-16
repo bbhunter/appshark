@@ -74,6 +74,37 @@ class ArgumentConfig(
         return this.maxThread ?: this.maxPointerAnalyzeThread
     }
 
+    fun configuredMaxPreprocessorThread(): Int = maxPreprocessorThread
+
+    fun configuredMaxPointerAnalyzeThread(): Int = maxPointerAnalyzeThread
+
+    fun copyForApk(snapshot: String): ArgumentConfig =
+        ArgumentConfig(
+            callBackEnhance = callBackEnhance,
+            manifestTrace = manifestTrace,
+            apkPath = snapshot,
+            configPath = configPath,
+            maxPointerAnalyzeTime = maxPointerAnalyzeTime,
+            javaSource = javaSource,
+            maxThread = maxThread,
+            maxPreprocessorThread = maxPreprocessorThread,
+            maxPointerAnalyzeThread = maxPointerAnalyzeThread,
+            outPath = outPath,
+            rulePath = rulePath,
+            rules = rules,
+            supportFragment = supportFragment,
+            logLevel = logLevel,
+            ruleMaxAnalyzer = ruleMaxAnalyzer,
+            deobfApk = deobfApk,
+            debugRule = debugRule,
+            doWholeProcessMode = doWholeProcessMode,
+            maxPathLength = maxPathLength,
+            skipAnalyzeNonRelatedMethods = skipAnalyzeNonRelatedMethods,
+            skipPointerPropagationForLibraryMethod = skipPointerPropagationForLibraryMethod,
+            libraryPackage = libraryPackage?.toList(),
+            securityLimits = securityLimits
+        )
+
     fun validate(): ArgumentConfig {
         require(maxPointerAnalyzeTime in 1..86_400) {
             "maxPointerAnalyzeTime must be between 1 and 86400"

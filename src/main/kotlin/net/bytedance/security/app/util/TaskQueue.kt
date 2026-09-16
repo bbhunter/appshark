@@ -21,7 +21,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.bytedance.security.app.Log
 import java.util.*
-import kotlin.system.exitProcess
 
 /**
  * global hander for oom
@@ -30,12 +29,10 @@ val oomHandler = CoroutineExceptionHandler { ctx, exception ->
     if (exception is OutOfMemoryError) {
         val coroutineName = ctx[CoroutineName]?.name
         Log.logErr("${coroutineName} CoroutineException because of oom")
-        exitProcess(37)
     }
     if (exception is StackOverflowError) {
         val coroutineName = ctx[CoroutineName]?.name
         Log.logErr("${coroutineName} CoroutineException because of oom")
-        exitProcess(38)
     }
     throw exception
 }

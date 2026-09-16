@@ -23,7 +23,6 @@ import net.bytedance.security.app.Log
 import net.bytedance.security.app.Log.logErr
 import net.bytedance.security.app.web.DefaultVulnerabilitySaver
 import java.util.*
-import kotlin.system.exitProcess
 
 /**
  * soot method signature parser
@@ -61,7 +60,7 @@ fun newFunctionSignature(methodSig: String): FunctionSignature {
     for (i in 1 until methodSig.length - 1) {
         when (val c = methodSig[i]) {
             ':' -> if (state != MethodSignatureParseState.Class) {
-                exitProcess(-2)
+                throw IllegalArgumentException("Invalid method signature")
             } else {
                 // state = ParseState.Space
             }
@@ -80,7 +79,7 @@ fun newFunctionSignature(methodSig: String): FunctionSignature {
                         state = MethodSignatureParseState.FunctionName
                     }
 
-                    else -> exitProcess(-7)
+                    else -> throw IllegalArgumentException("Invalid method signature")
                 }
             }
 
@@ -91,7 +90,7 @@ fun newFunctionSignature(methodSig: String): FunctionSignature {
                         s = ""
                     }
 
-                    else -> exitProcess(-8)
+                    else -> throw IllegalArgumentException("Invalid method signature")
                 }
             }
 
@@ -103,7 +102,7 @@ fun newFunctionSignature(methodSig: String): FunctionSignature {
                         state = MethodSignatureParseState.Argument
                     }
 
-                    else -> exitProcess(-9)
+                    else -> throw IllegalArgumentException("Invalid method signature")
                 }
             }
 
@@ -114,7 +113,7 @@ fun newFunctionSignature(methodSig: String): FunctionSignature {
                         s = ""
                     }
 
-                    else -> exitProcess(-10)
+                    else -> throw IllegalArgumentException("Invalid method signature")
                 }
             }
 

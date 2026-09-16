@@ -31,7 +31,6 @@ import net.bytedance.security.app.util.Json
 import net.bytedance.security.app.util.TaskQueue
 import net.bytedance.security.app.util.profiler
 import net.bytedance.security.app.util.uploadJsonResult
-import kotlin.system.exitProcess
 
 @Serializable
 class Results {
@@ -191,28 +190,22 @@ object OutputSecResults {
      * Add all the added information. The final report is the Results field
      */
     suspend fun processResult(ctx: PreAnalyzeContext) {
-        try {
-            Results.Profile = profiler.finishAndSaveProfilerResult()
-            init()
-            insertPerm()
-            insertMani()
-            addManifest(ctx)
-            groupResult(removeDup())
-            val jsonName =
-                "results_" + AndroidUtils.PackageName + "_" + java.lang.Long.toHexString(System.nanoTime() + (Math.random() * 100).toLong())
-            val outputPath = getConfig().outPath + "/results.json"
-            val profileOutputPath = getConfig().outPath + "/profile.json"
-            profiler.processResult(Results)
-            val s = Json.encodeToPrettyString(Results)
-            PLUtils.writeFile(outputPath, s)
-            PLUtils.writeFile(profileOutputPath, profiler.toString())
-            Log.logErr("write json to $outputPath")
-            uploadJsonResult("$jsonName.json", s)
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-            Log.logErr("ex=$ex,stack=\n${ex.stackTraceToString()}")
-            exitProcess(21)
-        }
+        Results.Profile = profiler.finishAndSaveProfilerResult()
+        init()
+        insertPerm()
+        insertMani()
+        addManifest(ctx)
+        groupResult(removeDup())
+        val jsonName =
+            "results_" + AndroidUtils.PackageName + "_" + java.lang.Long.toHexString(System.nanoTime() + (Math.random() * 100).toLong())
+        val outputPath = getConfig().outPath + "/results.json"
+        val profileOutputPath = getConfig().outPath + "/profile.json"
+        profiler.processResult(Results)
+        val s = Json.encodeToPrettyString(Results)
+        PLUtils.writeFile(outputPath, s)
+        PLUtils.writeFile(profileOutputPath, profiler.toString())
+        Log.logErr("write json to $outputPath")
+        uploadJsonResult("$jsonName.json", s)
     }
 
     @Synchronized
