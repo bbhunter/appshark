@@ -27,6 +27,7 @@ import net.bytedance.security.app.rules.Rules
 import net.bytedance.security.app.taintflow.TaintAnalyzer
 import net.bytedance.security.app.util.SecureFileIO
 import net.bytedance.security.app.security.RuleLoadContext
+import net.bytedance.security.app.security.ScanRuntime
 import net.bytedance.security.app.util.profiler
 import soot.Scene
 import soot.SootClass
@@ -68,26 +69,31 @@ class AnalyzeStepByStep {
     suspend fun parseRules(ctx: PreAnalyzeContext, rules: Rules): List<TaintAnalyzer> {
         val jobs = ArrayList<Job>()
         val analyzers = ArrayList<TaintAnalyzer>()
-        val scope = CoroutineScope(Dispatchers.Default)
-        for (r in rules.allRules) {
-            val rp = RuleProcessorFactory.create(ctx, r.mode)
-            val job = scope.launch(CoroutineName("parseRules-${r.name}")) {
-                rp.process(r)
-                if (rp is TaintFlowRuleProcessor) {
-                    if (analyzers.size > getConfig().ruleMaxAnalyzer) {
-                        logInfo("rule ${r.name} has too many rules: ${analyzers.size}, dropped")
-                        return@launch
+        val scanBudget = ScanRuntime.budget()
+        coroutineScope {
+            for (r in rules.allRules) {
+                val rp = RuleProcessorFactory.create(ctx, r.mode)
+                val job = launch(Dispatchers.Default + CoroutineName("parseRules-${r.name}")) {
+                    rp.process(r)
+                    if (rp is TaintFlowRuleProcessor) {
+                        if (rp.analyzers.size > getConfig().ruleMaxAnalyzer) {
+                            logInfo(
+                                "rule ${r.name} has too many analyzers: " +
+                                    "${rp.analyzers.size}, dropped"
+                            )
+                            return@launch
+                        }
+                        synchronized(analyzers) {
+                            scanBudget.reserveAnalyzers(rp.analyzers.size)
+                            analyzers.addAll(rp.analyzers)
+                        }
                     }
-                    synchronized(analyzers) {
-                        analyzers.addAll(rp.analyzers)
-                    }
-
                 }
+                jobs.add(job)
             }
-            jobs.add(job)
+            jobs.joinAll()
         }
 
-        jobs.joinAll()
         logInfo("analyzers: ${analyzers.size}")
         profiler.setAnalyzers(analyzers)
         ctx.callGraph.clear()

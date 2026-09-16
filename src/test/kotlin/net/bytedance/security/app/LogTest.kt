@@ -17,22 +17,48 @@
 
 package net.bytedance.security.app
 
-import net.bytedance.security.app.Log.logDebug
-import net.bytedance.security.app.Log.logErr
 import net.bytedance.security.app.Log.logInfo
+import net.bytedance.security.app.security.ScanBudget
+import net.bytedance.security.app.security.ScanRuntime
+import net.bytedance.security.app.security.ScanWorkspace
+import net.bytedance.security.app.security.SecurityTestFixtures.testLimits
+import net.bytedance.security.app.security.SecurityTestFixtures.zipOf
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 internal class LogTest {
     @Test
-    fun testLog() {
-        val nnn = "\n".repeat(10)
-        logErr(nnn)
-        logInfo("aaa")
-        logDebug("bbbb")
-        Thread.sleep(3000)
-        logErr("ccccc")
-        logInfo("dddd")
-        Thread.sleep(3000)
-        logErr("eeee")
+    fun `active scan logging escapes untrusted control characters`() {
+        val limits = testLimits().copy(
+            maxLogLineChars = 64,
+            maxLogBytes = 1024
+        ).validate()
+        val out = Files.createTempDirectory("appshark-log-test")
+        val workspace = ScanWorkspace.create(
+            out,
+            zipOf("classes.dex" to ByteArray(8)),
+            limits
+        )
+        val originalOut = System.out
+        val captured = ByteArrayOutputStream()
+
+        ScanRuntime.install(ScanBudget(limits), workspace)
+        try {
+            System.setOut(PrintStream(captured, true, StandardCharsets.UTF_8.name()))
+            logInfo("unsafe\n\u001Btext")
+        } finally {
+            System.setOut(originalOut)
+            ScanRuntime.clear()
+            workspace.close()
+        }
+
+        val output = captured.toString(StandardCharsets.UTF_8.name())
+        assertTrue(output.contains("unsafe\\u000A\\u001Btext"))
+        assertFalse(output.contains("unsafe\n"))
     }
 }

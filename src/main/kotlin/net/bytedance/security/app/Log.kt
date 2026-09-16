@@ -19,9 +19,12 @@
 
 package net.bytedance.security.app
 
+import net.bytedance.security.app.security.ScanLimitExceededException
+import net.bytedance.security.app.security.ScanRuntime
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.system.exitProcess
@@ -41,6 +44,7 @@ object Log {
     private val fileWriter: FileWriter
     private val buffer: StringBuilder = StringBuilder()
     private var lastTimeWrite: Long = System.currentTimeMillis()
+    private var loggingDisabled = false
     private const val writeBufferInterval = 1000 //default delay time
     const val TEXT_RESET = "\u001B[0m"
     const val TEXT_BLACK = "\u001B[30m"
@@ -138,17 +142,33 @@ object Log {
         fileWriter.close()
     }
 
+    @Synchronized
     fun logStr(str: String, level: Int) {
+        if (loggingDisabled) {
+            return
+        }
         val day = Date()
         val time = df.format(day)
+        val budget = ScanRuntime.budgetOrNull()
+        val safeText = budget?.sanitizeLogText(str) ?: str
+        val line = "$time:$safeText\n"
+        if (budget != null) {
+            try {
+                budget.reserveLog(line.toByteArray(StandardCharsets.UTF_8).size.toLong())
+            } catch (e: ScanLimitExceededException) {
+                loggingDisabled = true
+                System.err.println("log budget exceeded")
+                throw e
+            }
+        }
         buffer.append(time)
         buffer.append(":")
-        buffer.append(str)
+        buffer.append(safeText)
         val color = getLevelColor(level)
         if (level < ERROR)
-            println("$color$time:$str")
+            println("$color$time:$safeText")
         else
-            System.err.println("$color$time:$str")
+            System.err.println("$color$time:$safeText")
 //        println(buffer.toString())
         buffer.append("\n")
         doLog()

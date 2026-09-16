@@ -26,6 +26,7 @@ import net.bytedance.security.app.PreAnalyzeContext
 import net.bytedance.security.app.android.AndroidUtils
 import net.bytedance.security.app.getConfig
 import net.bytedance.security.app.result.model.*
+import net.bytedance.security.app.security.ScanRuntime
 import net.bytedance.security.app.util.Json
 import net.bytedance.security.app.util.TaskQueue
 import net.bytedance.security.app.util.profiler
@@ -216,6 +217,7 @@ object OutputSecResults {
 
     @Synchronized
     fun addOneVulnerability(vulnerabilityItem: VulnerabilityItem) {
+        ScanRuntime.budget().reserveResult()
         this.vulnerabilityItems.add(vulnerabilityItem)
     }
 
